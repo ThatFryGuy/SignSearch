@@ -1,10 +1,8 @@
 package org.SignFind.signfinder;
 
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
@@ -24,15 +22,15 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
-public class Signfindercommand implements CommandRegistrationCallback {
+public class Signfindercommand {
 
-    @Override
-    public void register(@NotNull CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess, Commands.CommandSelection environment) {
-        dispatcher.register(Commands.literal("findsigns")
-                .executes(this::execute));
+    public static void registerCommands() {
+        // Register the command using Fabric API
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(Commands.literal("findsigns")
+                .executes(Signfindercommand::execute)));
     }
 
-    private int execute(@NotNull CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+    private static int execute(@NotNull CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         CommandSourceStack source = context.getSource();
         ServerPlayer player = source.getPlayerOrException();
         ServerLevel world = source.getLevel();
@@ -51,14 +49,13 @@ public class Signfindercommand implements CommandRegistrationCallback {
                         BlockPos pos = playerPos.offset(x, y, z);
                         BlockState state = world.getBlockState(pos);
 
-                        // Skip processing non-sign blocks
                         if (!isSign(state)) {
                             continue;
                         }
 
                         BlockEntity blockEntity = world.getBlockEntity(pos);
                         if (blockEntity instanceof SignBlockEntity signBlockEntity) {
-                            SignText signText = signBlockEntity.getText(true); // Changed to true
+                            SignText signText = signBlockEntity.getText(true);
 
                             StringBuilder line1 = new StringBuilder();
                             StringBuilder line2 = new StringBuilder();
@@ -66,7 +63,7 @@ public class Signfindercommand implements CommandRegistrationCallback {
                             StringBuilder line4 = new StringBuilder();
 
                             for (int i = 0; i < 4; i++) {
-                                Component line = signText.getMessage(i, true); // Changed to true
+                                Component line = signText.getMessage(i, true);
                                 String lineText = line.getString();
 
                                 switch (i) {
@@ -109,7 +106,7 @@ public class Signfindercommand implements CommandRegistrationCallback {
         return 1;
     }
 
-    private boolean isSign(@NotNull BlockState state) {
+    private static boolean isSign(@NotNull BlockState state) {
         return state.getBlock() == Blocks.OAK_SIGN ||
                 state.getBlock() == Blocks.SPRUCE_SIGN ||
                 state.getBlock() == Blocks.BIRCH_SIGN ||
