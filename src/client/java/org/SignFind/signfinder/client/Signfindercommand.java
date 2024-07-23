@@ -1,18 +1,19 @@
 package org.SignFind.signfinder.client;
 
+import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
-import net.minecraft.world.level.block.entity.SignText;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.entity.SignText; // Import SignText
 import org.jetbrains.annotations.NotNull;
 
 import java.io.BufferedWriter;
@@ -22,13 +23,20 @@ import java.io.IOException;
 
 class SignfinderCommand {
 
-    public static int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        CommandSourceStack source = context.getSource();
-        ServerPlayer player = source.getPlayerOrException();
-        ServerLevel world = source.getLevel();
-        BlockPos playerPos = player.blockPosition();
+    public static void registerClientCommands(CommandDispatcher<FabricClientCommandSource> dispatcher) {
+        dispatcher.register(ClientCommandManager.literal("findsigns")
+                .executes(SignfinderCommand::execute));
+    }
 
-        boolean found = false;
+    public static int execute(@NotNull CommandContext<FabricClientCommandSource> context) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null) {
+            return 0; // Early exit if client or player is not available
+        }
+
+        ClientLevel world = client.level;
+        BlockPos playerPos = client.player.blockPosition();
+
         File file = new File("sign_data.csv");
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
@@ -47,49 +55,35 @@ class SignfinderCommand {
 
                         BlockEntity blockEntity = world.getBlockEntity(pos);
                         if (blockEntity instanceof SignBlockEntity signBlockEntity) {
-                            SignText signText = signBlockEntity.getText(true);
+                            SignText signText = signBlockEntity.getText(true); // Use getText with true
 
-                            StringBuilder line1 = new StringBuilder();
-                            StringBuilder line2 = new StringBuilder();
-                            StringBuilder line3 = new StringBuilder();
-                            StringBuilder line4 = new StringBuilder();
-
+                            // Retrieve the lines from SignText
+                            Component[] lines = new Component[4];
                             for (int i = 0; i < 4; i++) {
-                                Component line = signText.getMessage(i, true);
-                                String lineText = line.getString();
-
-                                switch (i) {
-                                    case 0 -> line1.append(lineText);
-                                    case 1 -> line2.append(lineText);
-                                    case 2 -> line3.append(lineText);
-                                    case 3 -> line4.append(lineText);
-                                }
+                                lines[i] = signText.getMessage(i, false); // Adjust method parameters as needed
                             }
 
                             writer.write(String.format("%d,%d,%d,%s,%s,%s,%s",
                                     pos.getX(), pos.getY(), pos.getZ(),
-                                    line1.toString().replace(",", ";"),
-                                    line2.toString().replace(",", ";"),
-                                    line3.toString().replace(",", ";"),
-                                    line4.toString().replace(",", ";")));
+                                    lines[0].getString().replace(",", ";"),
+                                    lines[1].getString().replace(",", ";"),
+                                    lines[2].getString().replace(",", ";"),
+                                    lines[3].getString().replace(",", ";")));
                             writer.newLine();
 
-                            if (!line1.toString().isEmpty() || !line2.toString().isEmpty() ||
-                                    !line3.toString().isEmpty() || !line4.toString().isEmpty()) {
+                            if (!lines[0].getString().isEmpty() || !lines[1].getString().isEmpty() ||
+                                    !lines[2].getString().isEmpty() || !lines[3].getString().isEmpty()) {
                                 MutableComponent message = Component.literal("Sign found at: " + pos + " with text:\n" +
-                                        line1 + "\n" + line2 + "\n" + line3 + "\n" + line4);
-                                source.sendSuccess(() -> message, false);
-                                found = true;
+                                        lines[0].getString() + "\n" + lines[1].getString() + "\n" + lines[2].getString() + "\n" + lines[3].getString());
+                                client.player.sendSystemMessage(message);
                             }
                         }
                     }
                 }
             }
 
-            if (!found) {
-                MutableComponent message = Component.literal("No signs found within a 75-block radius.");
-                source.sendSuccess(() -> message, false);
-            }
+            MutableComponent message = Component.literal("No signs found within a 75-block radius.");
+            client.player.sendSystemMessage(message);
 
         } catch (IOException e) {
             e.printStackTrace();
