@@ -17,15 +17,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
 import net.minecraft.world.level.block.state.BlockState;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 
 public class Signfindercommand implements CommandRegistrationCallback {
@@ -43,22 +39,11 @@ public class Signfindercommand implements CommandRegistrationCallback {
         BlockPos playerPos = player.blockPosition();
 
         boolean found = false;
-        Workbook workbook = null;
-        Sheet sheet = null;
-        File file = new File("sign_data.xlsx");
+        File file = new File("sign_data.csv");
 
-        try {
-            if (file.exists()) {
-                FileInputStream fileInputStream = new FileInputStream(file);
-                workbook = new XSSFWorkbook(fileInputStream);
-                sheet = workbook.getSheetAt(0);
-                fileInputStream.close();
-            } else {
-                workbook = new XSSFWorkbook();
-                sheet = workbook.createSheet("Sign Data");
-            }
-
-            int rowIndex = sheet.getLastRowNum() + 1;
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            writer.write("X,Y,Z,Line 1,Line 2,Line 3,Line 4");
+            writer.newLine();
 
             for (int x = -75; x <= 75; x++) {
                 for (int y = -75; y <= 75; y++) {
@@ -75,27 +60,35 @@ public class Signfindercommand implements CommandRegistrationCallback {
                         if (blockEntity instanceof SignBlockEntity signBlockEntity) {
                             SignText signText = signBlockEntity.getText(true); // Changed to true
 
-                            StringBuilder signTextString = new StringBuilder();
-                            boolean hasText = false;
-
-                            Row row = sheet.createRow(rowIndex++);
-                            row.createCell(0).setCellValue(pos.getX());
-                            row.createCell(1).setCellValue(pos.getY());
-                            row.createCell(2).setCellValue(pos.getZ());
+                            StringBuilder line1 = new StringBuilder();
+                            StringBuilder line2 = new StringBuilder();
+                            StringBuilder line3 = new StringBuilder();
+                            StringBuilder line4 = new StringBuilder();
 
                             for (int i = 0; i < 4; i++) {
                                 Component line = signText.getMessage(i, true); // Changed to true
                                 String lineText = line.getString();
 
-                                if (!lineText.isEmpty()) {
-                                    row.createCell(3 + i).setCellValue(lineText); // Write each line to a new column
-                                    signTextString.append(lineText).append("\n");
-                                    hasText = true;
+                                switch (i) {
+                                    case 0 -> line1.append(lineText);
+                                    case 1 -> line2.append(lineText);
+                                    case 2 -> line3.append(lineText);
+                                    case 3 -> line4.append(lineText);
                                 }
                             }
 
-                            if (hasText) {
-                                MutableComponent message = Component.literal("Sign found at: " + pos + " with text:\n" + signTextString.toString().trim());
+                            writer.write(String.format("%d,%d,%d,%s,%s,%s,%s",
+                                    pos.getX(), pos.getY(), pos.getZ(),
+                                    line1.toString().replace(",", ";"),
+                                    line2.toString().replace(",", ";"),
+                                    line3.toString().replace(",", ";"),
+                                    line4.toString().replace(",", ";")));
+                            writer.newLine();
+
+                            if (!line1.toString().isEmpty() || !line2.toString().isEmpty() ||
+                                    !line3.toString().isEmpty() || !line4.toString().isEmpty()) {
+                                MutableComponent message = Component.literal("Sign found at: " + pos + " with text:\n" +
+                                        line1 + "\n" + line2 + "\n" + line3 + "\n" + line4);
                                 source.sendSuccess(() -> message, false);
                                 found = true;
                             }
@@ -107,23 +100,10 @@ public class Signfindercommand implements CommandRegistrationCallback {
             if (!found) {
                 MutableComponent message = Component.literal("No signs found within a 75-block radius.");
                 source.sendSuccess(() -> message, false);
-            } else {
-                // Save the Excel file
-                try (FileOutputStream fileOut = new FileOutputStream(file)) {
-                    workbook.write(fileOut);
-                }
             }
 
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (workbook != null) {
-                try {
-                    workbook.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
         }
 
         return 1;
