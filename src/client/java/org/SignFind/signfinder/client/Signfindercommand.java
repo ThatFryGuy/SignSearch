@@ -1,15 +1,13 @@
-package org.SignFind.signfinder;
+package org.SignFind.signfinder.client;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
@@ -22,15 +20,9 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
-public class Signfindercommand {
+class SignfinderCommand {
 
-    public static void registerCommands() {
-        // Register the command using Fabric API
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(Commands.literal("findsigns")
-                .executes(Signfindercommand::execute)));
-    }
-
-    private static int execute(@NotNull CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+    public static int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         CommandSourceStack source = context.getSource();
         ServerPlayer player = source.getPlayerOrException();
         ServerLevel world = source.getLevel();
