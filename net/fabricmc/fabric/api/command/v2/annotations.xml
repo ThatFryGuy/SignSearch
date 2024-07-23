@@ -1,0 +1,5 @@
+<root>
+    <item name='net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback EVENT'>
+        <annotation name='org.jetbrains.annotations.NotNull'/>
+    </item>
+</root>

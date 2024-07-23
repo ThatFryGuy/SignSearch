@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "signfinder",
+  "version": "${version}",
+  "name": "SignFinder",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/signfinder/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "org.SignFind.signfinder.client.SignfinderClient"
+    ],
+    "main": [
+      "org.SignFind.signfinder.Signfinder"
+    ]
+  },
+  "mixins": [
+    "signfinder.mixins.json",
+    {
+      "config": "signfinder.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
