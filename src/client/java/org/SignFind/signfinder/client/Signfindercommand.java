@@ -18,10 +18,14 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.entity.SignText;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 class SignfinderCommand {
 
@@ -46,6 +50,19 @@ class SignfinderCommand {
         BlockPos playerPos = client.player.blockPosition();
 
         File file = new File("sign_data.csv");
+        Set<String> existingEntries = new HashSet<>();
+
+        // Read existing entries to avoid duplicates
+        if (file.exists()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    existingEntries.add(line);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
 
         int signCount = 0;
 
@@ -87,16 +104,20 @@ class SignfinderCommand {
                                 continue;
                             }
 
-                            writer.write(String.format("%s,%d,%d,%d,%s,%s,%s,%s",
+                            String entry = String.format("%s,%d,%d,%d,%s,%s,%s,%s",
                                     location,
                                     pos.getX(), pos.getY(), pos.getZ(),
                                     lines[0].getString().replace(",", ";"),
                                     lines[1].getString().replace(",", ";"),
                                     lines[2].getString().replace(",", ";"),
-                                    lines[3].getString().replace(",", ";")));
-                            writer.newLine();
+                                    lines[3].getString().replace(",", ";"));
 
-                            signCount++;
+                            if (!existingEntries.contains(entry)) {
+                                writer.write(entry);
+                                writer.newLine();
+                                existingEntries.add(entry);
+                                signCount++;
+                            }
                         }
                     }
                 }
