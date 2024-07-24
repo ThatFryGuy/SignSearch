@@ -68,7 +68,7 @@ class SignfinderCommand {
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, true))) { // Append to the file
             if (file.length() == 0) {
-                writer.write("Location,X,Y,Z,Line 1,Line 2,Line 3,Line 4");
+                writer.write("Location;X;Y;Z;Line 1;Line 2;Line 3;Line 4");
                 writer.newLine();
             }
 
@@ -104,13 +104,13 @@ class SignfinderCommand {
                                 continue;
                             }
 
-                            String entry = String.format("%s,%d,%d,%d,%s,%s,%s,%s",
+                            String entry = String.format("%s;%d;%d;%d;%s;%s;%s;%s",
                                     location,
                                     pos.getX(), pos.getY(), pos.getZ(),
-                                    lines[0].getString().replace(",", ";"),
-                                    lines[1].getString().replace(",", ";"),
-                                    lines[2].getString().replace(",", ";"),
-                                    lines[3].getString().replace(",", ";"));
+                                    lines[0].getString().replace(";", ":"),
+                                    lines[1].getString().replace(";", ":"),
+                                    lines[2].getString().replace(";", ":"),
+                                    lines[3].getString().replace(";", ":"));
 
                             if (!existingEntries.contains(entry)) {
                                 writer.write(entry);
