@@ -1,6 +1,8 @@
 package org.SignFind.signfinder.client;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -13,7 +15,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.entity.SignText; // Import SignText
+import net.minecraft.world.level.block.entity.SignText;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.BufferedWriter;
@@ -25,10 +27,16 @@ class SignfinderCommand {
 
     public static void registerClientCommands(CommandDispatcher<FabricClientCommandSource> dispatcher) {
         dispatcher.register(ClientCommandManager.literal("findsigns")
-                .executes(SignfinderCommand::execute));
+                .then(ClientCommandManager.argument("radius", IntegerArgumentType.integer())
+                        .then(ClientCommandManager.argument("location", StringArgumentType.string())
+                                .then(ClientCommandManager.argument("include", StringArgumentType.string())
+                                        .executes(context -> execute(context, IntegerArgumentType.getInteger(context, "radius"),
+                                                StringArgumentType.getString(context, "location"),
+                                                StringArgumentType.getString(context, "include"))))))
+                .executes(context -> execute(context, 75, "default", ""))); // Default radius, location, and include term
     }
 
-    public static int execute(@NotNull CommandContext<FabricClientCommandSource> context) {
+    public static int execute(@NotNull CommandContext<FabricClientCommandSource> context, int radius, String location, String include) {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || client.player == null) {
             return 0; // Early exit if client or player is not available
@@ -39,13 +47,17 @@ class SignfinderCommand {
 
         File file = new File("sign_data.csv");
 
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-            writer.write("X,Y,Z,Line 1,Line 2,Line 3,Line 4");
-            writer.newLine();
+        int signCount = 0;
 
-            for (int x = -75; x <= 75; x++) {
-                for (int y = -75; y <= 75; y++) {
-                    for (int z = -75; z <= 75; z++) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, true))) { // Append to the file
+            if (file.length() == 0) {
+                writer.write("Location,X,Y,Z,Line 1,Line 2,Line 3,Line 4");
+                writer.newLine();
+            }
+
+            for (int x = -radius; x <= radius; x++) {
+                for (int y = -radius; y <= radius; y++) {
+                    for (int z = -radius; z <= radius; z++) {
                         BlockPos pos = playerPos.offset(x, y, z);
                         BlockState state = world.getBlockState(pos);
 
@@ -63,7 +75,20 @@ class SignfinderCommand {
                                 lines[i] = signText.getMessage(i, false); // Adjust method parameters as needed
                             }
 
-                            writer.write(String.format("%d,%d,%d,%s,%s,%s,%s",
+                            boolean includeTermFound = false;
+                            for (Component line : lines) {
+                                if (line.getString().contains(include)) {
+                                    includeTermFound = true;
+                                    break;
+                                }
+                            }
+
+                            if (!includeTermFound) {
+                                continue;
+                            }
+
+                            writer.write(String.format("%s,%d,%d,%d,%s,%s,%s,%s",
+                                    location,
                                     pos.getX(), pos.getY(), pos.getZ(),
                                     lines[0].getString().replace(",", ";"),
                                     lines[1].getString().replace(",", ";"),
@@ -71,18 +96,18 @@ class SignfinderCommand {
                                     lines[3].getString().replace(",", ";")));
                             writer.newLine();
 
-                            if (!lines[0].getString().isEmpty() || !lines[1].getString().isEmpty() ||
-                                    !lines[2].getString().isEmpty() || !lines[3].getString().isEmpty()) {
-                                MutableComponent message = Component.literal("Sign found at: " + pos + " with text:\n" +
-                                        lines[0].getString() + "\n" + lines[1].getString() + "\n" + lines[2].getString() + "\n" + lines[3].getString());
-                                client.player.sendSystemMessage(message);
-                            }
+                            signCount++;
                         }
                     }
                 }
             }
 
-            MutableComponent message = Component.literal("No signs found within a 75-block radius.");
+            MutableComponent message;
+            if (signCount > 0) {
+                message = Component.literal(signCount + " signs found within a " + radius + "-block radius at location: " + location);
+            } else {
+                message = Component.literal("No signs found within a " + radius + "-block radius at location: " + location);
+            }
             client.player.sendSystemMessage(message);
 
         } catch (IOException e) {
